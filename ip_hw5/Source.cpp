@@ -15,18 +15,18 @@ int main(int argc, char** argv)
 {
 	int edgeThresh = 1;
 	int lowThreshold=150;
-	int const max_lowThreshold =450;
+	int const max_lowThreshold =400;
 	int ratio = 3;
 	int kernel_size = 3;
 
 //
-	String ins="test3";
+	String ins="bfy";
 	/// Read the image 
 	src = imread(ins+".jpg", CV_RGB2GRAY  );
 	result = imread(ins+".jpg", 1  );
 	int row=src.rows;
 	int col=src.cols;
-	Mat hps(row*3,360 , CV_8UC1, Scalar(0,0,0));
+	Mat hps(row*3,720 , CV_8UC1, Scalar(0,0,0));
 
 	int  mid=row*3/2;
 	  /// Reduce noise with a kernel 3x3
@@ -38,11 +38,11 @@ int main(int argc, char** argv)
 	int yy=row/2;
 	//array save
 	int **arr_hps;//BGR
-	arr_hps = new int *[360];
-	for(int i=0;i<360;i++){
+	arr_hps = new int *[720];
+	for(int i=0;i<720;i++){
 		arr_hps[i]=new int [row*3];
 	}
-	for(int i=0;i<360;i++)
+	for(int i=0;i<720;i++)
 		for(int j=0;j<row*3;j++){
 			arr_hps[i][j]=0;
 	}
@@ -53,8 +53,9 @@ int main(int argc, char** argv)
 		for(int j=0;j<row;j++){//y
 				int tmp=src.at<uchar>(Point(i,j));
 				if(tmp==255){
-					for(int deg=1;deg<=360;deg++){
+					for(int deg=1;deg<=720;deg++){
 						double rad=((double)deg*M_PI)/180;//rad=deg*(pi/180)
+						rad/=2;
 						double tho=(double)i*cos(rad)+(double)j*sin(rad);
 						//cout<<"deg:"<<deg<<endl;
 						//cout<<"tho:"<<tho+xx<<endl;
@@ -71,14 +72,14 @@ int main(int argc, char** argv)
 	}
 	int big_val=0;
 	int tho=0;
-	int theata=0;
+	double theata=0;
 	for(int i=0;i<hps.cols;i++){
 		for(int j=0;j<hps.rows;j++){
 			//int tmp=hps.at<uchar>(Point(i,j));
 			int tmp=arr_hps[i][j];
 			if(tmp>big_val){
 				tho=j-mid;
-				theata=i;
+				theata=i/2;
 				big_val=tmp;
 			}
 		}
@@ -97,7 +98,7 @@ int main(int argc, char** argv)
 		for(int j=0;j<row;j++){
 			int tmp=src.at<uchar>(Point(i,j));
 			if(tmp==255){
-				double rad=((double)theata*M_PI)/180;
+				double rad=(theata*M_PI)/180;
 				double tho_in=(double)(i)*cos(rad)+(double)(j)*sin(rad);
 				if((int)tho_in==tho){
 					Vec3b color;
