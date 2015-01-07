@@ -1,4 +1,4 @@
-#include "opencv2/highgui/highgui.hpp"
+ï»¿#include "opencv2/highgui/highgui.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 #include <cv.h>
 #include <iostream>
@@ -9,186 +9,115 @@
 # define M_PI           3.14159265358979323846  /* pi */
 using namespace std;
 using namespace cv;
-Mat src,img, gray_image;
-double avg(int x,int y);
-double avg2(int x,int y,double in);
-int checks2(int x,int y);
-int checks(int x,int y);
+Mat src,hps,result;
 /** @function main */
 int main(int argc, char** argv)
 {
-	int var=20;
-	String ins="F16";
+	int edgeThresh = 1;
+	int lowThreshold=50;
+	int const max_lowThreshold = 150;
+	int ratio = 3;
+	int kernel_size = 3;
+
+//
+	String ins="map2";
 	/// Read the image 
-	src = imread(ins+".jpg", 1 );
-	cvtColor( src, gray_image, CV_RGB2GRAY );
-	cvtColor( src, img, CV_RGB2GRAY );
-	cvtColor( src, src, CV_RGB2GRAY );
+	src = imread(ins+".jpg", CV_RGB2GRAY  );
+	result = imread(ins+".jpg", 1  );
 	int row=src.rows;
 	int col=src.cols;
-	int np=2;
-	int sum=(col*row)/np;
+	Mat hps(row*2,360 , CV_8UC1, Scalar(0,0,0));
 
 
-	const int nrolls=sum;  // number of experiments
+	  /// Reduce noise with a kernel 3x3
+	blur( src, src, Size(3,3) );
 
-	std::default_random_engine generator(time(0));
-	std::normal_distribution<double> distribution(127.0,var);
-	int p[256]={};
-	int *noise_v;
-	noise_v=new int[sum];
-	int count=0;
-	for (int i=0; i<nrolls; ++i) {
-		double number = distribution(generator);
-		if ((number>=0.0)&&(number<255.0)){
-			++p[int(number)];
-			noise_v[i]=number-127;
+	  /// Canny detector
+	Canny( src, src, lowThreshold, lowThreshold*ratio, kernel_size );
+	int xx=col/2;
+	int yy=row/2;
+	//draw hough transform space
+	for(int i=0;i<col;i++){//x
+		for(int j=0;j<row;j++){//y
+				int tmp=src.at<uchar>(Point(i,j));
+				if(tmp==255){
+					for(int deg=1;deg<=360;deg++){
+						double rad=(deg*M_PI)/180;//rad=deg*(pi/180)
+						double tho=(i-xx)*cos(rad)+(j-yy)*sin(rad);
+						//cout<<"deg:"<<deg<<endl;
+						//cout<<"tho:"<<tho+xx<<endl;
+						//cout<<"deg:"<<deg<<endl;
+						if(tho+col<row*2)
+							if(hps.at<uchar>(Point(deg-1,tho+col))<255)
+								hps.at<uchar>(Point(deg-1,tho+col))++;
+					}
+				}
 		}
 	}
-	for (int i=0; i<256; ++i) {
-		cout << i << "-" << (i+1) << ": ";
-		cout << p[i]<<endl;
-		count+=p[i];
+	int big_val=0;
+	int tho=0;
+	int theata=0;
+	for(int i=0;i<hps.cols;i++){
+		for(int j=0;j<hps.rows;j++){
+			int tmp=hps.at<uchar>(Point(i,j));
+			if(tmp>=big_val){
+				tho=j;
+				theata=i;
+				big_val=tmp;
+			}
+		}
 	}
-	cout << "count:"<<count<< endl;
-	// ¶Ã¼Æ±Æ§Ç
-	for(int i = 0,j,temp ; i < nrolls ; ++i) {
-		j=rand()%nrolls;
-		temp=noise_v[j];
-		noise_v[j]=noise_v[i];
-		noise_v[i]=temp;
-	}
-	for(int i = 0,j,temp ; i < nrolls ; ++i) {
-		j=rand()%nrolls;
-		temp=noise_v[j];
-		noise_v[j]=noise_v[i];
-		noise_v[i]=temp;
-	}
+	
+	cout<<"tho:"<<tho<<endl;
+	cout<<"theata:"<<theata<<endl;
+	cout<<"val:"<<big_val<<endl;
 
-	unsigned seed;
-    seed = (unsigned)time(NULL); // ¨ú±o®É¶¡§Ç¦C
-    srand(seed);
-
-	int v=0;
+	//
+	
 	for(int i=0;i<col;i++){
 		for(int j=0;j<row;j++){
-			
-			//	uchar color=noise_v[v];
-				//cout << "N:"<<noise_v[v]<< endl;
-				uchar color2=src.at<uchar>(Point(i,j));
-				//src.at<uchar>(Point(i,j))= color;
-				if(rand()%np==1){
-					int tmp= noise_v[v]+color2;
-					if(tmp>255)
-						tmp=255;
-					if(tmp<0)
-						tmp=0;
-					src.at<uchar>(Point(i,j))=tmp;
+			int tmp=src.at<uchar>(Point(i,j));
+			if(tmp==255){
+				double thea=(theata*M_PI)/180;
+				double tho_in=(i-xx)*cos(thea)+(j-yy)*sin(thea);
+				if((int)tho_in==tho-col){
+					Vec3b color;
+					color[0]=255;
+					color[1]=0;
+					result.at<Vec3b>(Point(i,j))=color;
 				}
-				v++;
-				if(v>sum){
-					v=0;
-				}
+			}
 		}
 	}
-	namedWindow( "gray", CV_WINDOW_AUTOSIZE );
-	imshow( "gray", src );
-	imwrite( ins+"_noise.jpg", src );
-
-
+	
 	for(int i=0;i<col;i++){
-		for(int j=0;j<row;j++){
-			
-				uchar g=src.at<uchar>(Point(i,j));
-				
-				double n=var;
-				double ml= avg(i,j);
-				double l=avg2(i,j,ml);
-				double co=(n*n)/(l*l);
-				if(co>1){
-					co=1;
-				}
-				uchar f=g-co*(g-ml);
-				gray_image.at<uchar>(Point(i,j))= f;
+		double thea=(theata*M_PI)/180;
+		int y=((tho-col)-((i-xx)*cos(thea)))/sin(thea)-yy;
+		Vec3b color;
+		color[0]=255;
+		color[1]=0;
+		if(y<row&&y>=0){
+			result.at<Vec3b>(Point(i,y))=color;
+			cout<<"Y:"<<y<<endl;
 		}
 	}
+	
+	
+	namedWindow( "canny", CV_WINDOW_AUTOSIZE );
+	imshow( "canny", src );
+	imwrite( ins+"_canny.jpg", src);
+
+	namedWindow( "hps", CV_WINDOW_AUTOSIZE );
+	imshow( "hps",hps );
+	imwrite( ins+"_hps.jpg",hps);
+
 	namedWindow( "result", CV_WINDOW_AUTOSIZE );
-	imshow( "result", gray_image );
-	imwrite( ins+"_result.jpg", gray_image );
-
-	for(int i=0;i<col;i++){
-		for(int j=0;j<row;j++){
-				uchar f=avg(i,j);
-				img.at<uchar>(Point(i,j))= f;
-		}
-	}
-	namedWindow( "avg", CV_WINDOW_AUTOSIZE );
-	imshow( "avg", img );
-	imwrite( ins+"_avg.jpg", img );
-
-	delete []noise_v;
+	imshow( "result",result );
+	imwrite( ins+"_result.jpg",result);
 	waitKey(0);
 	return 0;
 }
-//
-double avg(int x,int y){
-	int lu=checks2(x-1,y-1);
-	int u=checks2(x,y-1);
-	int ru=checks2(x+1,y-1);
-	int l=checks2(x-1,y);
-	int m=checks2(x,y);
-	int r=checks2(x+1,y);
-	int ld=checks2(x-1,y+1);
-	int d=checks2(x,y+1);
-	int rd=checks2(x+1,y+1);
-	double color_v=(lu+u+ru+l+m+r+ld+d+rd)/9;
-	return color_v;
-}
-double avg2(int x,int y,double in){
-	int lu=checks2(x-1,y-1);
-	int u=checks2(x,y-1);
-	int ru=checks2(x+1,y-1);
-	int l=checks2(x-1,y);
-	int m=checks2(x,y);
-	int r=checks2(x+1,y);
-	int ld=checks2(x-1,y+1);
-	int d=checks2(x,y+1);
-	int rd=checks2(x+1,y+1);
 
-
-
-	double color_v=sqrt((
-		((double)lu-in)*((double)lu-in)+
-		((double)u-in)*((double)u-in)+
-		((double)ru-in)*((double)ru-in)+
-		((double)l-in)*((double)l-in)+
-		((double)m-in)*((double)m-in)+
-		((double)r-in)*((double)r-in)+
-		((double)ld-in)*((double)ld-in)+
-		((double)d-in)*((double)d-in)+
-		((double)rd-in)*((double)rd-in)
-	)/9);
-	return color_v;
-}
-
-
-int checks(int x,int y){
-	if(x>=0&&x<src.cols&&y>=0&&y<src.rows){
-		uchar c=src.at<uchar>(y,x);
-		return 	c;
-	}
-	else
-		return 0;
-}
-
-int checks2(int x,int y){
-	if(x>=0&&x<src.cols&&y>=0&&y<src.rows){
-		uchar c=gray_image.at<uchar>(y,x);
-		return 	c;
-	}
-	else
-		return 0;
-}
 /*
 
 				uchar color=number;
