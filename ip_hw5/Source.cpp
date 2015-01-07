@@ -14,8 +14,8 @@ Mat src,hps,result;
 int main(int argc, char** argv)
 {
 	int edgeThresh = 1;
-	int lowThreshold=100;
-	int const max_lowThreshold = 310;
+	int lowThreshold=150;
+	int const max_lowThreshold =450;
 	int ratio = 3;
 	int kernel_size = 3;
 
@@ -30,7 +30,7 @@ int main(int argc, char** argv)
 
 	int  mid=row*3/2;
 	  /// Reduce noise with a kernel 3x3
-	blur( src, src, Size(3,3) );
+	//blur( src, src, Size(3,3) );
 
 	  /// Canny detector
 	Canny( src, src, lowThreshold, lowThreshold*ratio, kernel_size );
